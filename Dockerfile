@@ -6,10 +6,11 @@ FROM ghcr.io/linuxserver/baseimage-alpine:${ALPINE_VER}
 LABEL maintainer="wiserain"
 LABEL org.opencontainers.image.source https://github.com/wiserain/docker-flexget
 
+ARG FLEXGET_TARBALL="https://github.com/Flexget/Flexget/tarball/develop"
 ENV S6_BEHAVIOUR_IF_STAGE2_FAILS=2
 
 RUN \
-    echo "**** install frolvlad/alpine-python3 ****" && \
+	echo "**** install frolvlad/alpine-python3 ****" && \
 	apk add --no-cache python3 && \
 	if [[ ! -e /usr/bin/python ]]; then ln -sf /usr/bin/python3 /usr/bin/python; fi && \
 	python3 -m ensurepip && \
@@ -27,26 +28,31 @@ RUN \
 	echo "**** install dependencies for plugin: decompress ****" && \
 	apk add --no-cache unrar && \
 	pip install --upgrade \
-		rarfile && \
+	rarfile && \
 	echo "**** install dependencies for plugin: transmission-rpc ****" && \
 	apk add --no-cache --virtual=build-deps build-base python3-dev && \
 	pip install --upgrade transmission-rpc && \
 	echo "**** install dependencies for plugin: misc ****" && \
 	pip install --upgrade \
-		deluge-client \
-		irc_bot && \
+	deluge-client \
+	irc_bot
+RUN \
 	echo "**** install flexget ****" && \
 	apk add --no-cache --virtual=build-deps gcc libxml2-dev libxslt-dev libc-dev python3-dev jpeg-dev g++ && \
-	pip install --upgrade --force-reinstall \
-		flexget && \
+	mkdir -p /tmp/flexget && \
+	wget ${FLEXGET_TARBALL} -O /tmp/flexget.tar.gz && \
+	tar --strip-components=1 -xzvf /tmp/flexget.tar.gz -C /tmp/flexget && \
+	cd /tmp/flexget && \
+	python3 setup.py install && \
 	apk del --purge --no-cache build-deps && \
-	apk add --no-cache libxml2 libxslt jpeg && \
+	apk add --no-cache libxml2 libxslt jpeg
+RUN \
 	echo "**** system configurations ****" && \
 	apk --no-cache add bash bash-completion tzdata && \
 	echo "**** cleanup ****" && \
 	rm -rf \
-		/tmp/* \
-		/root/.cache
+	/tmp/* \
+	/root/.cache
 
 # copy libtorrent libs
 COPY --from=libtorrent /libtorrent-build/usr/lib/ /usr/lib/
