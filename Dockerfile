@@ -1,12 +1,29 @@
 ARG ALPINE_VER=3.13
 ARG LIBTORRENT_VER=latest
+ARG FLEXGET_TARBALL="https://github.com/Flexget/Flexget/tarball/develop"
+ARG FLEXGET_WEBUI_TARBALL="https://github.com/Flexget/webui/tarball/develop"
+
+# Build UI
+FROM node:lts-alpine as ui
+ARG FLEXGET_WEBUI_TARBALL
+ENV PATH /app/node_modules/.bin:$PATH
+
+WORKDIR /app
+RUN wget ${FLEXGET_WEBUI_TARBALL} -O ui.tar.gz && \
+	tar --strip-components=1 -xzvf ui.tar.gz
+RUN yarn install --frozen-lockfile
+RUN yarn build
+
+# Build rest
+ARG ALPINE_VER
+ARG LIBTORRENT_VER
 
 FROM ghcr.io/wiserain/libtorrent:${LIBTORRENT_VER}-alpine${ALPINE_VER}-py3 AS libtorrent
 FROM ghcr.io/linuxserver/baseimage-alpine:${ALPINE_VER}
 LABEL maintainer="wiserain"
 LABEL org.opencontainers.image.source https://github.com/wiserain/docker-flexget
 
-ARG FLEXGET_TARBALL="https://github.com/Flexget/Flexget/tarball/develop"
+ARG FLEXGET_TARBALL
 ENV S6_BEHAVIOUR_IF_STAGE2_FAILS=2
 
 RUN \
@@ -38,10 +55,12 @@ RUN \
 	irc_bot
 RUN \
 	echo "**** install flexget ****" && \
-	apk add --no-cache --virtual=build-deps gcc libxml2-dev libxslt-dev libc-dev python3-dev jpeg-dev g++ && \
 	mkdir -p /tmp/flexget && \
+	apk add --no-cache --virtual=build-deps gcc libxml2-dev libxslt-dev libc-dev python3-dev jpeg-dev g++ && \
 	wget ${FLEXGET_TARBALL} -O /tmp/flexget.tar.gz && \
-	tar --strip-components=1 -xzvf /tmp/flexget.tar.gz -C /tmp/flexget && \
+	tar --strip-components=1 -xzvf /tmp/flexget.tar.gz -C /tmp/flexget
+COPY --from=ui /app/dist  /tmp/flexget/flexget/ui/v2/dist
+RUN \
 	cd /tmp/flexget && \
 	python3 setup.py install && \
 	apk del --purge --no-cache build-deps && \
