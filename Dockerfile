@@ -56,7 +56,7 @@ RUN \
 RUN \
 	echo "**** install flexget ****" && \
 	mkdir -p /tmp/flexget && \
-	apk add --no-cache --virtual=build-deps gcc libxml2-dev libxslt-dev libc-dev python3-dev jpeg-dev g++ && \
+	apk add --no-cache --virtual=build-deps gcc libxml2-dev libxslt-dev libc-dev python3-dev jpeg-dev g++ linux-headers && \
 	wget ${FLEXGET_TARBALL} -O /tmp/flexget.tar.gz && \
 	tar --strip-components=1 -xzvf /tmp/flexget.tar.gz -C /tmp/flexget
 COPY --from=ui /app/dist  /tmp/flexget/flexget/ui/v2/dist
